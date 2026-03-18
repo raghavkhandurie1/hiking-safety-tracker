@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hiking Safety Tracker</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+        h1 { color: #2d7a2d; margin-bottom: 20px; }
+        h2 { color: #333; margin-bottom: 15px; }
+        .card { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        input, textarea { width: 100%; padding: 8px; margin: 6px 0 12px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        button { background: #2d7a2d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #235f23; }
+        .checkin-btn { background: #1a73e8; padding: 6px 12px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 13px; }
+        th { background: #2d7a2d; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .weather-result { margin-top: 15px; padding: 10px; background: #f0f8f0; border-radius: 5px; }
+        .alert { background: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 10px; border-left: 4px solid #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>🥾 Hiking Safety Tracker</h1>
+
+    <!-- WEATHER CHECK -->
+    <div class="card">
+        <h2>Check Weather Before You Go</h2>
+        <div class="row">
+            <div>
+                <input type="text" id="weather-location" placeholder="Enter trail location (e.g. Blue Mountains)" />
+                <button onclick="checkWeather()">Check Weather</button>
+            </div>
+            <div id="weather-result"></div>
+        </div>
+    </div>
+
+    <!-- LOG A HIKE -->
+    <div class="card">
+        <h2>Log a New Hike</h2>
+        <div class="row">
+            <div>
+                <label>Date</label>
+                <input type="date" id="date" />
+                <label>Location</label>
+                <input type="text" id="location" placeholder="e.g. Royal National Park" />
+                <label>Duration (minutes)</label>
+                <input type="number" id="duration" placeholder="e.g. 120" />
+                <label>Distance (km)</label>
+                <input type="number" id="distance" step="0.1" placeholder="e.g. 8.5" />
+            </div>
+            <div>
+                <label>Emergency Contact Email</label>
+                <input type="email" id="emergency_contact" placeholder="contact@email.com" />
+                <label>Expected Return Time</label>
+                <input type="datetime-local" id="expected_return" />
+                <label>Notes</label>
+                <textarea id="notes" rows="3" placeholder="Trail conditions, gear..."></textarea>
+            </div>
+        </div>
+        <button onclick="logHike()">Log Hike + Activate Safety Monitor</button>
+        <p id="log-status" style="margin-top:10px; color: green;"></p>
+    </div>
+
+    <!-- HIKE HISTORY -->
+    <div class="card">
+        <h2>My Hikes</h2>
+        <table>
+            <tr>
+                <th>Date</th>
+                <th>Location</th>
+                <th>Duration</th>
+                <th>Distance</th>
+                <th>Weather</th>
+                <th>Temp</th>
+                <th>Return By</th>
+                <th>Check In</th>
+            </tr>
+            {% for hike in hikes %}
+            <tr>
+                <td>{{ hike[1] }}</td>
+                <td>{{ hike[2] }}</td>
+                <td>{{ hike[3] }} min</td>
+                <td>{{ hike[4] }} km</td>
+                <td>{{ hike[5] }}</td>
+                <td>{{ hike[6] }}°C</td>
+                <td>{{ hike[9] }}</td>
+                <td>
+                    {% if hike[10] == 0 %}
+                    <button class="checkin-btn" onclick="checkIn({{ hike[0] }})">Check In ✓</button>
+                    {% else %}
+                    ✅ Safe
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <script>
+        async function checkWeather() {
+            const location = document.getElementById("weather-location").value;
+            const response = await fetch(`/weather?location=${location}`);
+            const data = await response.json();
+            document.getElementById("weather-result").innerHTML = `
+                <div class="weather-result">
+                    <p>🌡️ <strong>${data.temperature}°C</strong> (feels like ${data.feels_like}°C)</p>
+                    <p>💧 Humidity: ${data.humidity}%</p>
+                    <p>🌤️ ${data.description}</p>
+                    <p>💨 Wind: ${data.wind_speed} m/s</p>
+                </div>
+            `;
+        }
+
+        async function logHike() {
+            const data = {
+                date: document.getElementById("date").value,
+                location: document.getElementById("location").value,
+                duration: parseInt(document.getElementById("duration").value),
+                distance: parseFloat(document.getElementById("distance").value),
+                weather: "check app",
+                temperature: 0,
+                notes: document.getElementById("notes").value,
+                emergency_contact: document.getElementById("emergency_contact").value,
+                expected_return: document.getElementById("expected_return").value
+            };
+            const response = await fetch("/log_hike", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (result.status === "saved") {
+                document.getElementById("log-status").innerText = "✅ Hike logged! Safety monitor activated.";
+                setTimeout(() => location.reload(), 1500);
+            }
+        }
+
+        async function checkIn(hikeId) {
+            await fetch(`/checkin/${hikeId}`, {method: "POST"});
+            location.reload();
+        }
+    </script>
+</body>
+</html>

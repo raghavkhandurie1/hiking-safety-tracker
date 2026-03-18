@@ -1,0 +1,4 @@
+hikes.db
+__pycache__/
+*.pyc
+safety.py
